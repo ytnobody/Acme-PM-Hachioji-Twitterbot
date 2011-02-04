@@ -1,0 +1,34 @@
+#!/usr/bin/env perl
+use warnings;
+use strict;
+use Acme::PM::Hachioji;
+use Acme::PM::Hachioji::TwitterBot;
+use Getopt::Std;
+
+my $opts = {};
+getopts( 'k:s:t:S:', $opts );
+
+sub HELP_MESSAGE {
+    print <<EOF;
+usage
+hachiojipm_twitterbot [ options ]
+
+options
+ -k consumer_key
+ -s consumer_secret
+ -t access_token
+ -S access_token_secret
+
+EOF
+exit;
+}
+
+my $bot = Acme::PM::Hachioji->twitter_bot(
+    consumer_key => $opts->{ k },
+    consumer_secret => $opts->{ s },
+    access_token => $opts->{ t },
+    access_token_secret => $opts->{ S },
+);
+
+$bot->tweet;
+
