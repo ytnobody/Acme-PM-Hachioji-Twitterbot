@@ -9,6 +9,7 @@ use Net::Twitter::Lite;
 use Encode;
 use WWW::Shorten 'TinyURL', ':short';
 use POSIX qw/ strftime /;
+use utf8;
 
 __PACKAGE__->mk_accessors( qw/ bot / );
 
@@ -23,7 +24,7 @@ sub import {
 
 sub new {
     my ( $class, %arg ) = @_;
-    my $self = $class->SUPER::new( encoding => 'utf8' );
+    my $self = $class->SUPER::new();
     my $bot = Net::Twitter::Lite->new(
         consumer_key => $arg{ consumer_key },
         consumer_secret => $arg{ consumer_secret },
@@ -40,12 +41,33 @@ sub tweet {
     $self->fetch( 'events', keyword => 'hachioji.pm' );
     while ( my $event = $self->next ) {
         next if $event->start->epoch <= $now;
-        $self->_tweet( $event->title. " ". short_link( $event->event_url ). " 日時:". $event->start->strftime( '%Y/%m/%d %H:%M:%S' ). " #hachiojipm\n" );
+        $self->_tweet( $self->_make_tweet_text( $event ) );
     }
 }
 
+sub _make_tweet_text {
+    my ( $self, $event ) = @_;
+    my $desc  = $event->description;
+    my $catch = $event->catch;
+
+    $catch = '' if ( length $catch > 30 ); # so long
+    $desc  = $desc =~ /(テーマは.+\n)/ ? $1 : '';
+
+    my $text = $event->title
+     . ' - ' . $catch . ' '
+     . short_link( $event->event_url )
+     . " 日時:" . $event->start->strftime( '%Y/%m/%d %H:%M' )
+     . sprintf( '(参加希望%d/%d人)', $event->accepted->{ value } + $event->waiting, $event->limit )
+     . " #hachiojipm $desc";
+
+    substr( $text, 132 ) = '...' if ( length($text) > 132 );
+
+    return $text . "\n";
+}
+
+
 sub _tweet {
-    shift->bot->update( { status => decode_utf8( shift ) } );
+    shift->bot->update( { status => shift } );
 }
 
 1;
